@@ -1,0 +1,367 @@
+docker-compose构建镜像 重启容器步骤
+
+1: docker-compose.yml 文件中定义了一个名为 php-fpm 的服务
+
+    #    image: fengdejiyi/xs_php74:v1
+    build:
+      context: ./php-fpm
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      - ${APP_CODE_PATH_HOST}/selfstart/supervisord.d:/etc/supervisord.d
+    expose:
+      - "9000"
+    environment:
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_CERT_PATH=/certs/client
+    networks:
+      - docker_web   
+-----------------------------------------------------------------------------
+
+	project/
+	│
+	├── docker-compose.yml
+	├── php-fpm/
+	│   ├── Dockerfile  # 镜像构建所需的 Dockerfile
+	│   └── php7.4.ini  # PHP 配置文件
+	│
+	└── app/            # 应用代码目录（映射到容器中）
+	确保以下关键文件和目录存在：
+
+	php-fpm/ 中有用于构建镜像的 Dockerfile。
+	php-fpm/php${PHP_VERSION}.ini 是你需要映射的 PHP 配置文件。
+	app/ 是你的应用代码目录，映射到容器中的路径为 ${APP_CODE_PATH_CONTAINER}。
+
+2: 运行以下命令，在当前目录（docker-compose.yml 所在目录）下构建镜像：
+
+ docker-compose build php-fpm
+
+这会使用 php-fpm/ 下的 Dockerfile 来构建镜像。如果镜像构建成功，输出中会显示镜像 ID
+
+3:启动服务
+启动或重新启动 php-fpm 容器： 
+docker-compose up -d php-fpm
+
+-d 表示以后台模式运行。
+
+
+4. 重启容器
+如果需要重启 php-fpm 容器，可以使用以下命令：
+
+docker-compose restart php-fpm
+
+5. 检查容器状态
+
+查看服务状态是否正常运行：
+
+docker-compose ps
+
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+docker-compose创建容器的名称：
+
+第一种：默认生成
+
+tools_php-fpm_1：是容器的名称，由 docker-compose 自动生成，命名规则如下：
+tools：项目目录名（或 -p 参数指定的项目名）。
+php-fpm：服务名（docker-compose.yml 中定义的服务名）。
+_1：如果服务允许多个副本运行，这是第一个容器的编号。
+
+第二种：docker-compose.yml
+
+服务上指定（一个服务是一个容器）： container_name: php-fpm-container-1
+
+
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+使用同一个镜像创建名称不同的容器方法：
+
+1. 使用 Docker Compose 创建不同名称的容器
+如果你正在使用 Docker Compose 并且想要为同一个镜像创建另一个容器，只需在 docker-compose.yml 文件中为新容器指定一个不同的服务名称即可。例如：
+
+【在 Docker Compose 中，每个服务对应一个容器，服务的名称（即 docker-compose.yml 中的服务名）会作为容器的默认名称。如果你想创建多个容器，每个容器需要一个独立的服务定义。】
+
+
+
+version: '3.8'
+
+services:
+  php-fpm-1:
+    image: my_existing_image:latest  # 使用已有的镜像
+    container_name: php-fpm-container-1  # 指定容器名称
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+    networks:
+      - docker_web
+
+  php-fpm-2:
+    image: my_existing_image:latest  # 使用同一个已有的镜像
+    container_name: php-fpm-container-2  # 指定另一个不同的容器名称
+    ports:
+      - "9001:9000"  # 映射不同的端口
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+    networks:
+      - docker_web
+
+
+在上面的例子中：
+
+php-fpm-1 和 php-fpm-2 是 Docker Compose 服务的名称。
+php-fpm-container-1 和 php-fpm-container-2 是容器的实际名称，通过 container_name 来指定。
+
+
+ 启动容器（运行以下命令启动所有定义的容器，也可指定容器名称，只启动指定容器）
+
+docker-compose up -d
+
+
+
+2. 手动使用 Docker 命令创建不同名称的容器
+
+
+如果你没有使用 Docker Compose，而是直接使用 Docker 命令来管理容器，可以手动创建一个具有不同名称的新容器。以下是步骤：
+
+使用 Docker 命令创建容器：
+
+docker run -d --name php-fpm-container-2 my_existing_image:latest
+
+
+如果要映射不同的端口或使用不同的配置文件，可以通过 -p（端口映射）和 -v（卷映射）等选项进行配置：
+
+docker run -d --name php-fpm-container-2 -p 9001:9000 -v ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini my_existing_image:latest
+
+
+
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+如果你只需要简单的 PHP 和 Nginx 容器，并且选择使用现成的镜像，完全可以通过 image 来指定你想要的 PHP 和 Nginx 镜像版本，而无需编写 Dockerfile 文件。
+
+方案：
+你可以直接在 docker-compose.yml 文件中指定相应的镜像，比如选择官方的 PHP 和 Nginx 镜像，或者其他你需要的镜像版本。
+
+1. 使用 image 配置项：
+
+例如，假设你想要使用 PHP 7.4 和最新版本的 Nginx，你可以在 docker-compose.yml 中指定这些镜像：
+
+version: '3'
+services:
+  php-fpm:
+    image: php:7.4-fpm
+    volumes:
+      - ./php.ini:/usr/local/etc/php/php.ini
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+    expose:
+      - "9000"
+    networks:
+      - docker_web
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+      - ${NGINX_SITES_PATH}:/etc/nginx/sites-available
+      - ${NGINX_SSL_PATH}:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - php-fpm
+    networks:
+      - docker_web
+
+networks:
+  docker_web:
+    driver: bridge
+
+
+解释：
+PHP 服务：使用 php:7.4-fpm 镜像来运行 PHP 7.4 的 FPM 模式，你无需自己写 Dockerfile，只需要指定镜像。
+Nginx 服务：使用 nginx:latest 镜像来运行最新版本的 Nginx。
+volumes：用于挂载本地的 PHP 配置文件和代码目录等，以确保容器中的 PHP 和 Nginx 可以访问和处理你的代码。
+
+
+关键点：
+image：你通过指定镜像来直接使用现有的镜像，Docker 会自动从 Docker Hub 拉取该镜像。如果本地已经有缓存，则会直接使用本地镜像。
+build：如果你使用 build 配置项，才需要提供一个 Dockerfile 来构建自定义的镜像。在这种情况下，如果你只是需要使用现成的镜像，build 是不必要的。
+
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+
+将镜像推送到阿里云镜像仓库：
+
+账号：用于登录的用户名为阿里云账号全名，密码为开通服务时设置的密码。
+阿里云镜像仓库
+用户名：zhangmeilide
+密码：19****zml
+
+步骤如下：
+第一步：想登陆到阿里云镜像仓库
+
+$ docker login --username=zhangmeilide crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com
+
+第二步：再给镜像打一个tag版本号
+
+$ docker tag b55be580ff76 crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:001
+
+第三步：把镜像推送到registry
+
+$ docker push crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:001
+
+公式：
+
+$ docker login --username=zhangmeilide crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com
+$ docker tag [ImageId] crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:[镜像版本号]
+$ docker push crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:[镜像版本号]
+
+请根据实际镜像信息替换示例中的[ImageId]和[镜像版本号]参数
+
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+
+使用推送到爱里云镜像仓库的镜像：
+
+已经将 Docker 镜像推送到了阿里云容器镜像服务（Alibaba Cloud Container Registry，简称 ACR）。接下来，如果你想在其他地方拉取这个镜像并使用它，可以按照以下步骤操作：
+
+1. 登录到阿里云容器镜像仓库
+
+首先，你需要在目标机器上登录到阿里云的容器镜像仓库。使用以下命令登录：
+docker login --username=zhangmeilide crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com
+
+
+会提示你输入密码（通常是阿里云的 Access Key Secret 或者你阿里云账号的 登录密码，如果你使用的是 RAM 账号，需要生成专门的镜像仓库密码）。
+
+2. 拉取镜像
+
+登录成功后，你可以使用 docker pull 命令拉取你推送到阿里云的镜像。拉取命令格式如下：
+
+docker pull crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:[镜像版本号]
+
+其中，[镜像版本号] 是你之前推送时指定的版本号（例如 v1.0.0）。如果没有指定版本号，默认使用 latest。
+
+例如，如果你的镜像版本是 v1.0，命令就是：
+
+docker pull crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:v1.0
+
+
+-d 表示以后台模式运行容器。
+--name project_container 用于给容器命名（可选）。
+crpi-13j5eq6ng4gmfd44.cn-hangzhou.personal.cr.aliyuncs.com/projectone/projectimg:[镜像版本号] 是拉取到的镜像名称。
+
+
+4. 检查容器状态
+可以使用以下命令检查容器是否正在运行：
+
+docker ps
+
+
+如果容器没有启动，可以查看日志来排查问题
+
+docker logs project_container
+
+启动了是这样：
+[18-Nov-2024 06:40:15] NOTICE: fpm is running, pid 9
+[18-Nov-2024 06:40:15] NOTICE: ready to handle connections
+
+5.停止容器
+docker stop project_container
+
+6.删除容器
+docker rm project_container
+
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+
+
+执行以下命令来查看 xinswlde/phpfpm 镜像的历史：
+
+docker history xinswlde/phpfpm
+
+这将展示镜像的层次结构、创建时间、创建者、大小等信息。根据这些信息，你可能能够推测出该镜像的构建过程。
+
+
+
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+
+镜像导入后需要的工作：
+
+第一：
+vim docker-compose.yml 
+docker-compose down
+docker-compose up -d
+
+第二：
+cd laradock/nginx/sites/
+cp default.conf   /home/docker_web/tools/nginx/sites/
+cd /home/docker_web/tools/nginx/sites/
+
+ vim docker-compose.yml 
+vim .env
+第三：
+
+修改配置
+cd selfstart/
+cd supervisord.d/
+vim swoole.conf 
+
+更新supervior，登入php容器执行这个supervisorctl update
+
+
+
+
+-------------------------
+
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/data/website/www/log",
+                "Destination": "/var/log",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/data/website/www/selfstart/supervisord.d",
+                "Destination": "/etc/supervisord.d",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/data/website/php-fpm/php7.4.ini",
+                "Destination": "/usr/local/etc/php/php.ini",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/data/website/www",
+                "Destination": "/var/www/html",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+
+        
+

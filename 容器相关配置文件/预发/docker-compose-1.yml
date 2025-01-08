@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  php74:
+    container_name: php74-container_4
+    image: registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1
+    volumes:
+      - /home/www:/var/www
+    ports:
+      - "9000:9000"  # PHP-FPM 端口映射
+    networks:
+      - laradock_backend
+    command: tail -f /dev/null  # 保持容器在后台运行
+
+  mysql:
+    container_name: laradock_mysql_2
+    image: laradock/mysql:latest
+    ports:
+      - "3306:3306"
+    networks:
+      - laradock_backend
+    environment:
+      MYSQL_ROOT_PASSWORD: yhblsqtxswl
+
+  nginx:
+    container_name: laradock_nginx_2
+    image: laradock/nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - laradock_backend
+    depends_on:
+      - php74  # 确保 PHP 容器在 Nginx 容器之前启动
+
+networks:
+  laradock_backend:
+    name:laradock_backend
+    driver: bridge
+

@@ -1,0 +1,23 @@
+version: "3.6"
+services:
+  nginx:
+    image: nginx:stable-alpine3.17-slim
+    ports:
+    - 80:80
+    - 8082:8082
+    - 8083:8083
+    - 8084:8084
+    - 443:443
+    - 8085:8085
+    volumes:
+    - ./www:/usr/share/nginx/html
+    - ./nginx-conf/:/etc/nginx/conf.d/
+    links:
+      - "php"
+    restart: always
+
+  php:
+    image: xswl/php7.4:latest
+    volumes:
+    - ./www:/var/www/html/
+    restart: always

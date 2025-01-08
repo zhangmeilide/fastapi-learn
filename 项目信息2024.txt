@@ -1,0 +1,2 @@
+重启并触发配置脚本
+ D:\linux_os> vagrant reload --provision

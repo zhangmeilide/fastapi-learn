@@ -1,0 +1,1 @@
+2024/10/30 08:26:58 [error] 52#52: *1 directory index of "/var/www/l_aaa/" is forbidden, client: 172.18.0.1, server: laaa.com, request: "GET / HTTP/1.1", host: "laaa.com"

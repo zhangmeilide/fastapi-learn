@@ -38,6 +38,10 @@ git push -u origin main
 
 git pull origin main
 
+注意：如果你当前的分支是 master，而不是 main，可能会出错误，可以git push -u origin master这样推送，
+也可以修改完了名称再推送（git branch -m master main
+git push -u origin main）
+
 第二：如果有冲突需要手动解决，解决后再继续提交和推送。
 
 -------------------------------------------------------------------------------

@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  php74:
+    container_name: php74-container
+    image: registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      - ${APP_CODE_PATH_HOST}/selfstart/supervisord.d:/etc/supervisord.d
+    expose:
+      - "9000"
+    environment:
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_CERT_PATH=/certs/client
+    ports:
+      - "9000:9000"
+    networks:
+      - laradock_backend
+
+networks:
+  laradock_backend:
+    name: laradock_backend  # 注意此处为 2 个空格
+    driver: bridge
+

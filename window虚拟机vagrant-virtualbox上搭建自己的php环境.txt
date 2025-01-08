@@ -1,0 +1,129 @@
+信息：
+  
+ 1 vagrant的重启并触发配置脚本
+ D:\linux_os> vagrant reload --provision
+ 
+ 2 虚拟机的私有网络
+   config.vm.network "private_network", ip: "192.168.33.10"
+   
+ 3 SSH 端口的转发：Vagrant 默认会将虚拟机的端口 22 映射到宿主机的 2222 端口，除非你显式地更改这个配置。
+    
+	vagrant reload --provision 启动信息里可以看见
+	
+4  config.vm.synced_folder "D:\\linux_os\\data", "/vagrant" ,:type => "nfs", mount_options:['nolock,vers=3,udp,noatime,actimeo=1']
+上面指出了宿主机和虚拟机的挂载目录
+
+----------------------------------------------------------
+
+第一：进入对应目录启动虚拟机：
+ D:\linux_os>
+vagrant reload --provision
+
+第二：通过xshell连接虚拟机
+
+密码是（vagrantfile文件里有）：  
+  config.ssh.username = "vagrant"
+  config.ssh.password = "vagrant" 
+  
+  ip可以是上面的私有ip 22 也可以是127.0.0.1 2222
+  
+第三：进入/vagrant/www/tools，www以后的项目目录，tools存放docker-compose.YML等容器生成文件
+
+文件就是tools最终版【对应青海项目】；
+   执行docker-compose up -d
+完成显示：
+CONTAINER ID   IMAGE                                                   COMMAND                  CREATED        STATUS         PORTS                                                                              NAMES
+ab31ebcd7262   registry.cn-hangzhou.aliyuncs.com/fengdejiyi/nginx:v1   "/docker-entrypoint.…"   22 hours ago   Up 4 seconds   0.0.0.0:80->80/tcp, :::80->80/tcp, 0.0.0.0:443->443/tcp, :::443->443/tcp, 81/tcp   tools_nginx_1
+464289bf4d07   registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1   "docker-php-entrypoi…"   22 hours ago   Up 5 seconds   9000/tcp                                                                           tools_php-fpm_1
+
+第四：配置nginx相关域名文件：
+/vagrant/www/tools/nginx/sites这里增加网站配置文件：
+
+
+server {
+
+    listen 80;
+    listen [::]:80;
+
+    server_name hyjgapi.cn;
+    root /var/www/wjxt_one/public;
+    index index.php index.html index.htm;
+
+ location / {
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
+    add_header Access-Control-Allow-Origin "http://sxwjxt.issense.cn";
+    add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
+    add_header Access-Control-Allow-Credentials true;
+    try_files $uri $uri/ /index.php$is_args$args;
+}
+
+    location /map {
+        add_header Access-Control-Allow-Methods *;
+        add_header Access-Control-Allow-Origin *;
+
+        add_header Access-Control-Allow-Headers *;
+
+        add_header Access-Control-Allow-Credentials true;
+    }
+
+    location ~ \.php$ {
+        try_files $uri /index.php =404;
+        fastcgi_pass php-upstream;
+        fastcgi_index index.php;
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        #fixes timeouts
+        fastcgi_read_timeout 600;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt/;
+        log_not_found off;
+    }
+
+    error_log /var/log/nginx/hyjgapi_error.log;
+    access_log /var/log/nginx/hyjgapi_access.log;
+}
+
+
+
+第五：检查配置并重启 Nginx
+在应用配置之前，先检查一下 Nginx 配置是否正确：
+sudo nginx -t
+
+如果配置无误，重启 Nginx 容器
+
+第六：
+修改宿主机的 hosts 文件
+在宿主机上修改 hosts 文件，让浏览器能够访问你设置的域名。
+
+编辑 /etc/hosts 文件（在 Windows 上是 C:\Windows\System32\drivers\etc\hosts）：
+
+
+192.168.33.10 hyjgapi.cn
+
+
+
+
+ 注意：
+ 重启vagrant需要重启容器，后面加上下面这步骤进行优化
+  
+Vagrant.configure("2") do |config|
+  config.vm.provision "shell", inline: <<-SHELL
+    cp /vagrant/docker-compose.yml /home/vagrant/docker-compose.yml
+    cd /home/vagrant
+    docker-compose up -d
+  SHELL
+end
+
+  
+  
+  
+
+

@@ -1,0 +1,41 @@
+# 项目路径
+APP_CODE_PATH_HOST=../www
+#容器中 代码库的路径
+APP_CODE_PATH_CONTAINER=/var/www
+
+# Enter your Docker Host IP (will be appended to /etc/hosts). Default is `10.0.75.1`
+DOCKER_HOST_IP=10.0.12.1
+
+####网络相关
+NETWORKS_DRIVER=bridge
+
+# All volumes driver
+VOLUMES_DRIVER=local
+
+# redis 数据库
+DATA_PATH_HOST=../data
+### NGINX #################################################
+
+NGINX_HOST_HTTP_PORT=80
+NGINX_HOST_HTTPS_PORT=443
+NGINX_HOST_LOG_PATH=./logs/nginx/
+NGINX_SITES_PATH=./nginx/sites/
+NGINX_SSL_PATH=./nginx/ssl/
+
+
+### REDIS #################################################
+
+REDIS_PORT=6379
+REDIS_PASSWORD=secret_redis
+
+
+#######php####
+PHP_VERSION=7.4
+
+# tool 路径
+TOOL_PATH_HOST=../tools
+
+####是否开起达梦数据库
+DAMENG_ENABLE=true
+
+

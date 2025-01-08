@@ -1,0 +1,53 @@
+.env  改一下 否则巨慢
+CHANGE_SOURCE=true
+
+运行容器
+docker-compose up -d nginx   redis workspace
+
+docker-compose restart  php-fpm
+
+pecl install imagick && /usr/local/bin/docker-php-ext-enable imagick
+内部安装  workspace   php-fpm  里面就行  php.ini  改一下  重启 workspace   php-fpm 
+pecl install swoole-4.8.13 && /usr/local/bin/docker-php-ext-enable swoole
+
+
+外包重启
+docker-compose restart php-fpm
+
+docker-compose restart nginx
+
+docker-compose restart workspace
+
+
+
+修改 .env php 版本   (可以把不用的东西不装 否则需要翻墙很痛苦 )
+https://blog.csdn.net/qq_15273019/article/details/105223153  把node 都关了
+
+docker-compose build php-fpm
+docker-compose build workspace
+
+docker-compose restart php-fpm
+docker-compose restart nginx
+docker-compose restart workspace
+
+//会删除的容器 --危险
+docker-compose down php-fpm workspace
+//重新创建容器
+docker-compose up -d  php-fpm workspace
+
+
+pecl install parallel && docker-php-ext-enable parallel
+
+
+必须
+安装 supervisor  和 crontab 
+apt-get update && apt-get install -y supervisor
+
+重启
+supervisorctl reload  
+查看状态
+supervisorctl status  
+
+
+
+apt-get install -y ffmpeg

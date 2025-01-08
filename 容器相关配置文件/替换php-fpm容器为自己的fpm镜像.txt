@@ -1,0 +1,281 @@
+
+只是替换php容器，调原来阿里云自己的镜像【mysql和nginx还是用原来laradock的】
+--------------------------------------------------------------------------------------------------------------------
+
+第一步：在home/www下面编写文件 docker-compose.yml 
+
+version: '3'
+
+services:
+  php74:
+    container_name: php74-container_6
+    image: registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1
+    volumes:
+      - /home/www:/var/www
+    ports:
+      - "9000:9000"
+    networks:
+      - laradock_backend
+
+networks:
+  laradock_backend:
+    name: laradock_backend  # 注意此处为 2 个空格 这里要和现有nginx在同一个网络，
+    driver: bridge
+
+
+不好的地方：
+挂载的不太够，明天用下面命令再挂载下[没有用这个方法，直接重新优化了docker-compose.yml]：
+
+docker run -d \
+  --name test-container \
+  -v /home/user/data:/app/data \
+  nginx:latest
+
+
+
+ ------------------------------------------------------------------------------------------------------
+
+ 查看网络方法：docker inspect laradock_nginx_1 【下面laradock_backend就是网络的名称】
+
+
+          "Networks": {
+                "laradock_backend": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "nginx",
+                        "0e03c8ce8066"
+                    ],
+                    "NetworkID": "40b41a3a04c365c10dd04c37e1b1bc7d5c0e8a0489cfe96921eb6c271bcb4327",
+                    "EndpointID": "05d6ebd361b77bca5980f017d3dc79421341b2d76d8c537946d2c91c1774872e",
+                    "Gateway": "172.19.0.1",
+                    "IPAddress": "172.19.0.4",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:ac:13:00:04",
+                    "DriverOpts": null
+                },
+                "laradock_frontend": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "nginx",
+                        "0e03c8ce8066"
+                    ],
+                    "NetworkID": "b2929c8f87764e5ffa6e107027f1d0ebc021441b46e563ff06520edbd13a5598",
+                    "EndpointID": "35d7f17c9bd8f74710a7dcdf5c19df1ec1ca72d6d0d57728b559824e6444f42f",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:ac:12:00:02",
+                    "DriverOpts": null
+                }
+            }
+
+
+
+
+-------------------------------------------------------------------------------------------------------------
+
+启用：新镜像
+docker-compose up -d
+
+-----------------------------------------------
+
+测试nginx和新的php容器在不在一个网络
+
+Nginx 容器成功通过容器名称 php74-container_6 访问到了 PHP 容器的 IP 地址（172.19.0.5），并且与 PHP 容器的通信正常
+
+ping php74-container_6:9000 进入nginx容器执行了这个
+PING php74-container_6:9000 (172.19.0.5): 56 data bytes
+64 bytes from 172.19.0.5: seq=0 ttl=64 time=0.063 ms
+64 bytes from 172.19.0.5: seq=1 ttl=64 time=0.072 ms
+64 bytes from 172.19.0.5: seq=2 ttl=64 time=0.089 ms
+
+
+
+----------------------------------------------------------------------------------------
+进入nginx容器：都是在容器里完成的这里：
+
+如果不确定配置文件的位置，可以通过以下命令查看
+ nginx -t
+
+/etc/nginx/conf.d/upstream.conf  这个里面发现了这个
+
+upstream php-upstream { server php-fpm:9000; }
+
+修改成：
+
+upstream php-upstream {
+    server php74-container_6:9000;
+}
+
+
+--------------------------------------------------------------------------------------------
+
+sudo nginx -s reload 重新加载配置文件
+
+docker restart laradock_nginx_1
+
+docker stop 9c2ffdc63ae4 关掉了原来php的容器
+
+--------------------------------------------------------------------------------------------------------------- 
+
+
+修改进程守护的配置：
+
+cd selfstart/
+cd supervisord.d/
+vim swoole.conf 
+vim es_search.conf
+
+更新supervior，登入php容器执行这个supervisorctl update
+
+--------------------------------------------------------------------------------------------
+
+over完成！
+
+----------------------------------------------------------------------------------------------
+原来的几个容器：
+
+CONTAINER ID   IMAGE                     COMMAND                   CREATED         STATUS        PORTS                                            NAMES
+
+073d1352cadc   registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1   "docker-php-entrypoi…"   16 hours ago    Up 16 hours   0.0.0.0:9000->9000/tcp    php74-container_6
+
+0e03c8ce8066   laradock_nginx       "/docker-entrypoint.…"   5 months ago    Up 15 hours   0.0.0.0:80-81->80-81/tcp, 0.0.0.0:443->443/tcp    laradock_nginx_1
+
+9c2ffdc63ae4   laradock_php-fpm     "docker-php-entrypoi…"   12 months ago   Up 15 hours   9000/tcp      laradock_php-fpm_1
+
+
+
+--------------------------------------------------------------------------------------------------------------------
+
+安装完后应用需要的扩展查看
+ php -m | grep swoole
+php -m | grep imagick
+php -m | grep pdo_mysql
+php -m | grep gd
+
+
+------------------------------------------------------- 
+番外1：
+
+如果需要调整配置
+增加备用 PHP-FPM 节点（高可用）
+如果你有多个 PHP-FPM 实例，可以在 upstream 块中添加多个节点：
+
+nginx
+复制代码
+upstream php-upstream {
+    server php-fpm:9000;          # 主节点
+    server php-fpm-backup:9000;  # 备用节点
+}
+----------------------------------------------------------------------------------------
+番外2：
+
+docker network ls 查看当前所有docker的网络
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------------
+优化篇：
+
+第一：优化后的docker-compose.yml文件：
+
+
+version: '3'
+
+services:
+  php74:
+    container_name: php74-container-7
+    image: registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      - ${APP_CODE_PATH_HOST}/selfstart/supervisord.d:/etc/supervisord.d
+    expose:
+      - "9000"
+    environment:
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_CERT_PATH=/certs/client
+    ports:
+      - "9000:9000"
+    networks:
+      - laradock_backend
+
+networks:
+  laradock_backend:
+    name: laradock_backend  # 注意此处为 2 个空格
+    driver: bridge
+
+
+
+第二：新增.env文件【要用ls -a才可以看见】
+
+
+# 项目路径
+APP_CODE_PATH_HOST=/home/www
+#容器中 代码库的路径
+APP_CODE_PATH_CONTAINER=/var/www
+
+# Enter your Docker Host IP (will be appended to /etc/hosts). Default is `10.0.75.1`
+DOCKER_HOST_IP=10.0.12.1
+
+####网络相关
+NETWORKS_DRIVER=bridge
+
+# All volumes driver
+VOLUMES_DRIVER=local
+
+# redis 数据库
+DATA_PATH_HOST=../data
+### NGINX #################################################
+
+NGINX_HOST_HTTP_PORT=80
+NGINX_HOST_HTTPS_PORT=443
+NGINX_HOST_LOG_PATH=./logs/nginx/
+NGINX_SITES_PATH=./nginx/sites/
+NGINX_SSL_PATH=./nginx/ssl/
+
+
+### REDIS #################################################
+
+REDIS_PORT=6379
+REDIS_PASSWORD=secret_redis
+
+
+#######php####
+PHP_VERSION=7.4
+
+# tool 路径
+TOOL_PATH_HOST=../tools
+
+####是否开起达梦数据库
+DAMENG_ENABLE=true
+
+
+
+
+第三：进入nginx容器，修改upstream
+
+upstream php-upstream {
+    server php74-container-7:9000;
+}
+
+
+
+
+
+

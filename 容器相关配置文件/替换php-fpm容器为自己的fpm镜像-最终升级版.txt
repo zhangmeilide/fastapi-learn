@@ -1,0 +1,283 @@
+
+只是替换php容器，调原来阿里云自己的镜像【mysql和nginx还是用原来laradock的，最终版无需修改upstream.conf】
+-------------------------------------------------------------------------------------------------
+
+第一步：在home/www下面编写文件 docker-compose.yml 
+
+version: '3'
+
+services:
+  php-fpm:
+    image: registry.cn-hangzhou.aliyuncs.com/fengdejiyi/php74:v1
+    volumes:
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+      - ${APP_CODE_PATH_HOST}/selfstart/supervisord.d:/etc/supervisord.d
+    expose:
+      - "9000"
+    environment:
+      - DOCKER_TLS_VERIFY=1
+      - DOCKER_TLS_CERTDIR=/certs
+      - DOCKER_CERT_PATH=/certs/client
+    ports:
+      - "9000:9000"
+    networks:
+      - laradock_backend
+
+networks:
+  laradock_backend:
+    name: laradock_backend  # 注意此处为 2 个空格
+    driver: bridge
+    external: true
+
+
+-------------------------------------------------------------------------------------------------------
+
+启用：新镜像
+docker-compose up -d
+
+-------------------------------------------------------------------------------------------------------  
+
+注意：
+
+name：指定使用已有的 laradock_backend 网络。
+external: true：明确表示这个网络是外部创建的，不需要由当前 docker-compose.yml 创建，这项如果不设置会出现下错误提示。
+
+WARN[0030] a network with name laradock_backend exists but was not created for project "www".
+Set external: true to use an existing network 
+network laradock_backend was found but has incorrect label com.docker.compose.network set to "backend"  
+
+-----------------------------------------------------------------------------------------------------
+ 确保网络已存在：运行以下命令，检查 laradock_backend 是否存在：
+ docker network ls
+
+ 输出如下：
+  NETWORK ID     NAME                     DRIVER    SCOPE
+  5905d087c59b   bridge                   bridge    local
+  b0620ce9a8ed   go-view-docker_app_net   bridge    local
+  d94f45bae0c2   host                     host      local
+  9df1e7139030   jimu_default             bridge    local
+  e3ae31075286   laradock_backend         bridge    local
+  8be991c9d233   laradock_default         bridge    local
+  8ca1b3b4487c   laradock_frontend        bridge    local
+  065b310d8417   none                     null      local
+  e37340430fb7   runner_default           bridge    local
+  a23c13603eee   tools_docker_web         bridge    local
+
+
+  验证网络连接：确保 php-fpm 容器已经加入 laradock_backend 网络：
+  docker network inspect laradock_backend
+  在输出中查找 www-php-fpm-1 是否在 Containers 列表中。
+
+  最终当前网络配置和容器连接情况如下：
+
+  docker network inspect laradock_backend
+  [
+      {
+          "Name": "laradock_backend",
+          "Id": "e3ae31075286ad74859402a6c0550b1cf96ecf1740a265d50b1cf94b983292b0",
+          "Created": "2021-04-11T13:07:09.897442551+08:00",
+          "Scope": "local",
+          "Driver": "bridge",
+          "EnableIPv6": false,
+          "IPAM": {
+              "Driver": "default",
+              "Options": null,
+              "Config": [
+                  {
+                      "Subnet": "172.21.0.0/16",
+                      "Gateway": "172.21.0.1"
+                  }
+              ]
+          },
+          "Internal": false,
+          "Attachable": true,
+          "Ingress": false,
+          "ConfigFrom": {
+              "Network": ""
+          },
+          "ConfigOnly": false,
+          "Containers": {
+              "141af37ba5fcdce168285520eb1a566404b96ade5f4b5e81b6b8b390773298e0": {
+                  "Name": "laradock-nginx-1",
+                  "EndpointID": "0483da1cb1bb1a6ac4da93f9c1fd634f4e6d69eba4da9d67c595992933387cf4",
+                  "MacAddress": "02:42:ac:15:00:03",
+                  "IPv4Address": "172.21.0.3/16",
+                  "IPv6Address": ""
+              },
+              "580cbb692fc71f647c2f676996e588bf34c1b7128def077be10d9d1734ba2b98": {
+                  "Name": "www-php-fpm-1",
+                  "EndpointID": "d2cb33d9680b2bdb0ac2266fe907d55c93fe2362883bf5efa38a9944ae2681aa",
+                  "MacAddress": "02:42:ac:15:00:06",
+                  "IPv4Address": "172.21.0.6/16",
+                  "IPv6Address": ""
+              },
+              "8af06c6de34840eccbb61efbecf08c7eaa4c48364973b5ce6ce17c24db86aba9": {
+                  "Name": "laradock-docker-in-docker-1",
+                  "EndpointID": "48bcd68e6c563b79e5112ff6e84d8b047ab030bd9d1fa21ed787a343c619790d",
+                  "MacAddress": "02:42:ac:15:00:04",
+                  "IPv4Address": "172.21.0.4/16",
+                  "IPv6Address": ""
+              },
+              "b960d9f3ad0b794e83ed6d50d409b2412c13e8ac12adcc9460be02d9c3d826e4": {
+                  "Name": "laradock-mysql-1",
+                  "EndpointID": "33237df0ec53b3b5a0977c01aa2dedc4e318922ae810f0950deb0f447dd6a57e",
+                  "MacAddress": "02:42:ac:15:00:02",
+                  "IPv4Address": "172.21.0.2/16",
+                  "IPv6Address": ""
+              }
+          },
+          "Options": {},
+          "Labels": {
+              "com.docker.compose.network": "backend",
+              "com.docker.compose.project": "laradock",
+              "com.docker.compose.version": "1.26.0"
+          }
+      }
+  ]
+
+
+网络信息解析
+网络名称: laradock_backend
+
+ID: e3ae31075286ad74859402a6c0550b1cf96ecf1740a265d50b1cf94b983292b0
+驱动类型: bridge
+子网: 172.21.0.0/16
+网关: 172.21.0.1
+
+挂载的容器:
+
+laradock-nginx-1: 172.21.0.4
+www-php-fpm-1: 172.21.0.6 （你的容器已正确加入网络）
+laradock-php-worker-1: 172.21.0.5
+laradock-mysql-1: 172.21.0.2
+laradock-php-fpm-1: 172.21.0.3
+
+
+-------------------------------------------------------------------------------------------------------------
+
+
+修改进程守护的配置：
+
+cd selfstart/
+cd supervisord.d/
+vim swoole.conf 
+vim es_search.conf
+
+更新supervior，登入php容器执行这个supervisorctl update
+
+------------------------------------------------------------------------------------------------------------ 
+
+success over完成！
+
+----------------------------------------------------------------------------------------------
+
+安装完后应用需要的扩展查看
+ php -m | grep swoole
+ php -m | grep imagitic
+php -m | grep imagtic
+php -m | grep imagick
+php -m | grep pdo_mysql
+php -m | grep gd
+
+
+------------------------------------------------------- 
+番外1：
+
+这版和初始版本比，初始版本制定了服务名称不是php-fpm,而是php74，services:
+  php74，这样就需要修改upstream，比较麻烦，这版本指定php-fpm服务，和laradocker
+  的php服务是一样的，容器名称会根据默认规则自动生成，不需要修改upstream，
+upstream php-upstream { server php-fpm:9000; }这样设置，nginx会去自动寻找所有php-fpm服务的容器。
+
+两个版本原理解析：
+
+第一：
+  Docker Compose 会自动为每个服务创建一个 DNS 名称，服务名称就会作为该 DNS 名称。这样，容器之间可以通过服务名称（比如 php-fpm）直接访问对方，而不需要关心具体的容器名称或 IP 地址。
+
+  服务名称与多个容器：
+  在 Docker Compose 中，服务名称通常会作为 DNS 名称使用。如果你定义了多个同名的 php-fpm 服务，并且它们都连接到同一个网络，Nginx 可以通过服务名称访问所有容器。这是因为 Docker Compose 会将这些服务名称映射到网络上的容器 IP。
+
+  负载均衡：
+  当你使用 upstream 配置时，Nginx 会自动进行负载均衡。如果你在 php-fpm 服务中运行多个容器（例如，两个或更多的 php-fpm 容器），Nginx 会将请求轮询到这些容器上，而不是只访问一个容器。Nginx 会按照服务名称解析到所有同名的容器，然后负载均衡地分发请求。
+
+第二：
+
+服务名称（Service Name）： 默认情况下，Docker Compose 中定义的服务名称会作为 DNS 名称，用来让其他容器访问该服务。
+例如，在你的例子中，php74 是服务名称。
+
+容器名称（Container Name）： 如果你显式指定了 container_name，Docker 会为这个容器指定一个固定的名称，例如 php74-container_6。你可以通过这个容器名称来访问该容器，而不是使用服务名称。
+
+为什么 upstream 也可以使用容器名称： 在 Docker 的同一网络中，容器可以通过容器名称进行相互通信。所以，即使你在 Nginx 的 upstream 配置中指定了 php74-container_6:9000，Nginx 也能找到这个容器并访问它。这是因为 Nginx 会通过容器的名称（php74-container_6）在网络中解析到该容器。
+
+因为容器名称在同一网络内是唯一的，所以你可以直接使用容器名称来访问该容器。
+
+第三：
+
+ 无论你是否设置了 container_name，服务名称在 Docker Compose 中始终有效。你可以在同一个网络中的其他容器通过服务名称来访问该容器，（例如
+ 可以在nginx容器中使用服务php-fpm或者php74来访问php容器）。
+
+ 显式设置 container_name 后，服务名称依然有效： 即使你为容器显式指定了 container_name，Docker Compose 仍然会为服务提供 DNS 解析，这样其他容器仍然可以通过服务名称访问该容器。这是因为服务名称在 Docker Compose 配置中仍然作为 DNS 名称起作用。
+
+
+番外2:
+
+在 Docker Compose 中，expose 和 ports 都用于容器的端口暴露，但它们的用途和行为有所不同。
+
+expose 用于在容器之间的网络内部暴露端口，它不会将端口暴露到宿主机上。
+其他容器可以通过容器的 IP 地址或服务名称访问暴露的端口，但宿主机或外部网络无法直接访问这些端口。
+expose 用于服务之间的通信，但不会直接暴露给外部访问。
+例如，在你的 php-fpm 服务中使用 expose 是为了让 Nginx 可以访问 PHP-FPM，但没有将端口暴露到宿主机上。
+
+ports 用于将容器端口映射到宿主机的端口。容器内的端口会暴露到宿主机上，从而允许外部访问这些端口。
+通过 ports 映射，容器的端口可以被宿主机或外部网络访问。
+例如，在你的 nginx 服务中使用 ports 映射端口 80 和 443，是为了让外部访问 Nginx 服务。
+
+------------------------------------------------------- 
+
+.env 文件的内容如下：
+
+APP_CODE_PATH_HOST=/docker/www
+#容器中 代码库的路径
+APP_CODE_PATH_CONTAINER=/var/www
+
+# Enter your Docker Host IP (will be appended to /etc/hosts). Default is `10.0.75.1`
+DOCKER_HOST_IP=10.0.12.1
+
+####网络相关
+NETWORKS_DRIVER=bridge
+
+# All volumes driver
+VOLUMES_DRIVER=local
+
+# redis 数据库
+DATA_PATH_HOST=../data
+### NGINX #################################################
+
+NGINX_HOST_HTTP_PORT=80
+NGINX_HOST_HTTPS_PORT=443
+NGINX_HOST_LOG_PATH=./logs/nginx/
+NGINX_SITES_PATH=./nginx/sites/
+NGINX_SSL_PATH=./nginx/ssl/
+
+
+### REDIS #################################################
+
+REDIS_PORT=6379
+REDIS_PASSWORD=secret_redis
+
+
+#######php####
+PHP_VERSION=7.4
+
+# tool 路径
+TOOL_PATH_HOST=../tools
+
+
+
+
+
+
+
+
+
+
