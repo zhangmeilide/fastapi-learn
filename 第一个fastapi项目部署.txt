@@ -1,0 +1,62 @@
+一：首先，你需要安装 FastAPI 和 Uvicorn（一个 ASGI 服务器，用来运行 FastAPI 应用）。
+python --version
+
+pip --version
+
+pip install fastapi uvicorn
+
+uvicorn app:app --reload --log-level debug 调试模式运行
+
+进入项目根目录，执行下面进入虚拟环境【在虚拟环境运行服务和pycharm的终端是一样的】
+.\.venv\Scripts\activate
+
+
+检查端口是否空闲
+netstat -ano | findstr :8000
+
+一直请求报错端口只能用一次 换了端口
+uvicorn app:app --reload --port 8001
+
+
+二：创建 FastAPI 项目文件
+在你的项目文件夹下创建一个 main.py 文件。下面是一个简单的 FastAPI 应用示例：
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello, FastAPI!"}
+
+三：运行应用
+使用 Uvicorn 来启动应用：
+uvicorn main:app --reload
+注意：
+1 uvicorn main:app --reload 这里的 main 和 app 有特定的含义：
+main 是你 Python 文件的名称（不包含 .py 扩展名）。
+也就是说，如果你创建了一个 main.py 文件，那么 main 就是这个文件的模块名。
+app 是你在 main.py 文件中定义的 FastAPI 实例名。
+在你的代码中，通常你会像这样创建一个 FastAPI 实例：
+from fastapi import FastAPI
+app = FastAPI()
+所以，app 是这个实例的变量名，表示你的 FastAPI 应用。
+
+2 你应该在 main.py 文件所在的目录 中运行这个命令。也就是说，如果你的 main.py 文件在某个项目目录下，比如 C:/my_project/，你需要进入这个目录并在该目录下运行
+
+四： 访问 API
+打开浏览器，访问 http://127.0.0.1:8000，你应该能看到返回的 JSON 响应：
+
+五： API 文档
+FastAPI 提供了自动生成的 API 文档，你可以在以下两个 URL 中查看：
+
+Swagger UI: http://127.0.0.1:8000/docs
+ReDoc: http://127.0.0.1:8000/redoc
+这样，你就可以快速启动并运行一个简单的 FastAPI 项目了！
+
+
+
+
+
+
+
