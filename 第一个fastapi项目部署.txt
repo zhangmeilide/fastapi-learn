@@ -17,6 +17,10 @@ netstat -ano | findstr :8000
 一直请求报错端口只能用一次 换了端口
 uvicorn app:app --reload --port 8001
 
+ uvicorn app:app --host 127.0.0.1 --port 8000 --workers 10
+ 
+  uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+  
 
 二：创建 FastAPI 项目文件
 在你的项目文件夹下创建一个 main.py 文件。下面是一个简单的 FastAPI 应用示例：
