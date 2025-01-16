@@ -1,0 +1,36 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------
+
+注意：
+
+原来php的部署思路，是n个项目跑一个php-fpm服务，所以在nginx部署的时候，
+可以用一个upstream.conf里的配置，如upstream php-upstream { 
+    server php-fpm:9000; 
+}，但是现在fastapi是一个项目部署自己独立的容器，一个项目就是一个服务，所以
+nginx配置多个项目的时候upstream里要有多个，如
+upstream fastapi-upstream {
+    server fastapiwjxt_app_one:8000;  # FastAPI1 服务
+}
+upstream fastapi-upstream {
+    server fastapiwjxt_app_two:8000;  # FastAPI1 服务
+}
